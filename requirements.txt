@@ -1,0 +1,20 @@
+fastapi
+python-multipart
+redis
+rapidfuzz
+sqlalchemy
+uvicorn[standard]
+google-genai
+pandas
+curl_cffi
+python-dotenv
+faster-whisper
+piper-tts
+sounddevice
+numpy
+scipy<1.15
+
+# Optional natural TTS, uncomment if using KokoroTTS. Enable with USE_KOKORO=true and KOKORO_MODEL_PATH=kokoro-v0_19.pth.
+# kokoro==0.7.16
+# numpy==1.26.4
+# soundfile
