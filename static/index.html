@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceLog — Letterboxd Voice Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #292a27;
+            --paper: #d9d5c8;
+            --paper-light: #ece8dc;
+            --muted: #9d9a8e;
+            --rust: #bd6f62;
+            --sage: #78908a;
+            --cream: #f3eedf;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--cream);
+            background: #292a27;
+            font-family: 'DM Sans', sans-serif;
+            background-image: radial-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(120deg, #30312e, #222321);
+            background-size: 4px 4px, 100% 100%;
+        }
+        .journal-shell { max-width: 1240px; margin: 0 auto; padding: 28px 28px 56px; }
+        .journal-header { display: flex; justify-content: space-between; align-items: end; gap: 24px; border-bottom: 1px solid #696960; padding-bottom: 18px; }
+        .eyebrow { color: #b8b3a6; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; }
+        .journal-title { margin: 3px 0 0; color: var(--paper-light); font: 700 44px/1 'Playfair Display', serif; letter-spacing: .01em; }
+        .journal-title span { color: var(--rust); }
+        .export-link { color: var(--ink); background: var(--paper); padding: 11px 16px; border-radius: 2px; font-size: 12px; font-weight: 700; text-decoration: none; text-transform: uppercase; letter-spacing: .08em; box-shadow: 3px 3px 0 #171816; }
+        .journal-grid { display: grid; grid-template-columns: 290px 1fr; gap: 38px; margin-top: 32px; }
+        .voice-desk { position: sticky; top: 20px; align-self: start; }
+        .desk-note { color: var(--paper-light); font: 600 28px/1 'Caveat', cursive; transform: rotate(-3deg); margin: 0 0 22px 16px; }
+        .recorder { padding: 24px 20px; background: #383a36; border: 1px solid #64665e; box-shadow: 8px 8px 0 #1b1c1a; }
+        .recorder h2 { margin: 0; color: var(--paper-light); font: 700 23px 'Playfair Display', serif; }
+        .recorder-copy { margin: 8px 0 24px; color: #b4b1a5; font-size: 12px; line-height: 1.6; }
+        .mic-button { width: 116px; height: 116px; display: grid; place-items: center; margin: 18px auto; color: var(--paper-light); background: #232522; border: 1px solid #74766b; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 8px #30322e, 4px 4px 0 #1c1d1b; }
+        .mic-button:hover { transform: translateY(-2px) rotate(-2deg); }
+        .mic-button svg { width: 38px; height: 38px; }
+        .desk-status { border-top: 1px dashed #77786e; padding-top: 13px; margin-top: 18px; }
+        .desk-status label { color: #d28b7c; display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+        .desk-status p { margin: 5px 0 0; color: #cbc7b9; font-size: 12px; }
+        .transcript { min-height: 40px; margin-top: 14px; color: #d99686; font: 18px 'Caveat', cursive; }
+        .conversation { max-height: 210px; overflow-y: auto; margin-top: 18px; }
+        .conversation > div { margin-top: 8px; padding: 8px 10px; border-left: 2px solid var(--rust); color: #d8d3c6; background: rgba(0,0,0,.14); font-size: 12px; line-height: 1.45; }
+        .conversation > div span { color: #e1a091; }
+        .diary-heading { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #696960; padding-bottom: 10px; }
+        .diary-heading h2 { margin: 0; color: var(--paper-light); font: 700 28px 'Playfair Display', serif; }
+        .diary-heading p { margin: 0; color: #aaa79b; font: 22px 'Caveat', cursive; }
+        .diary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 34px 22px; padding-top: 30px; }
+        .empty-state { grid-column: 1 / -1; padding: 70px 20px; border: 1px dashed #686960; color: #aaa79b; text-align: center; font: 25px 'Caveat', cursive; }
+        .movie-card { position: relative; min-height: 300px; padding: 18px 14px 15px; background: #4a625e; border: 1px solid #71837c; box-shadow: 8px 9px 0 rgba(12,13,12,.5); transform: rotate(var(--tilt)); }
+        .movie-card::before { content: ''; position: absolute; inset: 11px -7px -7px 10px; z-index: -1; background: rgba(91,119,113,.55); }
+        .movie-card img { display: block; width: min(100%, 150px); height: 190px; object-fit: cover; margin: 0 auto 12px; background: #2d302d; border: 5px solid #e3dfd2; box-shadow: 0 2px 5px #20221f; }
+        .movie-card h3 { margin: 0; color: #f1ecdd; font: 700 22px/1.05 'Caveat', cursive; text-align: center; }
+        .movie-card .movie-meta { margin-top: 4px; color: #e0b0a3; font-size: 11px; text-align: center; }
+        .movie-card .movie-review { margin: 12px 4px 0; color: #eee8d8; font: 17px/1.1 'Caveat', cursive; text-align: center; }
+        .movie-card .movie-stars { color: #f0c278; font-size: 14px; text-align: center; }
+        .tape { position: absolute; top: -12px; left: 50%; width: 82px; height: 25px; background: rgba(214,196,157,.78); transform: translateX(-50%) rotate(-4deg); }
+        .pulse-ring { animation: pulse 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+        .pulse-ring {
+            animation: pulse 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @media (max-width: 800px) {
+            .journal-shell { padding: 20px 16px 40px; }
+            .journal-header { align-items: start; flex-direction: column; }
+            .journal-title { font-size: 37px; }
+            .journal-grid { grid-template-columns: 1fr; gap: 28px; }
+            .voice-desk { position: static; }
+            .diary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 500px) { .diary-grid { grid-template-columns: 1fr; } }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="journal-shell">
+        <header class="journal-header">
+            <div><div class="eyebrow">A spoken archive of things worth feeling</div><h1 class="journal-title">Movie <span>journal</span></h1></div>
+            <a href="/download-csv" download class="export-link">Export the pages ↓</a>
+        </header>
+        <main class="journal-grid">
+            <aside class="voice-desk">
+                <p class="desk-note">Select, save &amp;<br>use!</p>
+                <section class="recorder">
+                    <h2>Talk to your diary</h2>
+                    <p class="recorder-copy">Tell me what you watched, how it landed, or what is still sitting with you.</p>
+                    <button id="micBtn" onclick="toggleRecording()" class="mic-button" aria-label="Start or pause recording">
+                        <svg id="micIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/></svg>
+                    </button>
+                    <p id="statusText" class="desk-status">Click to start listening</p>
+                    <p id="liveTranscript" class="transcript">Waiting for speech...</p>
+                    <div class="desk-status"><label>Connection</label><p id="connectionStatus">Disconnected</p></div>
+                    <div id="conversationContainer" class="conversation" aria-live="polite"></div>
+                </section>
+            </aside>
+            <section>
+                <div class="diary-heading"><h2>Recent pages</h2><p><span id="logCount">0 entries</span> &amp; counting</p></div>
+                <div id="logContainer" class="diary-grid">
+                    <div id="emptyState" class="empty-state">Your next favorite is waiting for a little ink.</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let ws;
+        let recognition;
+        let mediaRecorder;
+        let mediaStream;
+        let audioChunks = [];
+        let isListening = false;
+        let logCount = 0;
+        let pendingTranscripts = [];
+        let reconnectTimer;
+        let unsentTranscript = '';
+        let lastSentTranscript = '';
+        const sessionId = localStorage.getItem('voicelog-session') || crypto.randomUUID();
+        localStorage.setItem('voicelog-session', sessionId);
+
+        function initWebSocket() {
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/log?session_id=${encodeURIComponent(sessionId)}`);
+
+            ws.onopen = () => {
+                document.getElementById('connectionStatus').innerText = "Connected to Gemini Agent";
+                document.getElementById('connectionStatus').className = "text-xs text-emerald-400";
+                while (pendingTranscripts.length) {
+                    ws.send(JSON.stringify({ transcript: pendingTranscripts.shift() }));
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.status === "received") {
+                    document.getElementById('statusText').innerText = "Received by backend — matching film...";
+                } else {
+                    handlePipelineResult(data);
+                }
+            };
+
+            ws.onclose = () => {
+                document.getElementById('connectionStatus').innerText = "Disconnected (Retrying...)";
+                document.getElementById('connectionStatus').className = "text-xs text-rose-400";
+                reconnectTimer = setTimeout(initWebSocket, 3000);
+            };
+        }
+
+        function sendTranscript(transcript) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ transcript: transcript }));
+                document.getElementById('statusText').innerText = "Sent to backend — processing...";
+            } else {
+                pendingTranscripts.push(transcript);
+                document.getElementById('statusText').innerText = "Saved locally — waiting for backend connection...";
+            }
+        }
+
+        function toggleRecording() {
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                document.getElementById('statusText').innerText = "Audio recording is not supported in this browser";
+                return;
+            }
+
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+
+        async function startListening() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (error) {
+                document.getElementById('statusText').innerText = "Microphone permission denied";
+                return;
+            }
+
+            audioChunks = [];
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : 'audio/webm';
+            mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) audioChunks.push(event.data);
+            };
+            mediaRecorder.onstop = uploadRecording;
+            mediaRecorder.start();
+            {
+                isListening = true;
+                const btn = document.getElementById('micBtn');
+                btn.className = "mic-button pulse-ring";
+                document.getElementById('micIcon').className = "";
+                document.getElementById('statusText').innerText = "Recording... click to pause and submit";
+                document.getElementById('liveTranscript').innerText = "Audio is being captured locally";
+            }
+        }
+
+        function updateMicButton(statusMessage = "Click to Start Listening") {
+            const btn = document.getElementById('micBtn');
+            btn.className = "mic-button";
+            document.getElementById('micIcon').className = "";
+            document.getElementById('statusText').innerText = statusMessage;
+        }
+
+        function stopListening() {
+            isListening = false;
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+            mediaRecorder.stop();
+            if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+            updateMicButton('Paused — uploading audio to backend');
+            document.getElementById('liveTranscript').innerText = 'Preparing audio...';
+        }
+
+        async function uploadRecording() {
+            const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+            if (!blob.size) {
+                updateMicButton('Paused — no audio captured');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('session_id', sessionId);
+            formData.append('file', blob, 'voice.webm');
+            document.getElementById('statusText').innerText = 'Audio sent — transcribing...';
+            try {
+                const response = await fetch('/api/audio-log', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.transcript) {
+                    document.getElementById('liveTranscript').innerText = `Transcript: "${data.transcript}"`;
+                    addConversationLine('You', data.transcript);
+                }
+                handlePipelineResult(data);
+            } catch (error) {
+                document.getElementById('statusText').innerText = `Upload failed: ${error.message}`;
+            } finally {
+                audioChunks = [];
+                mediaRecorder = null;
+            }
+        }
+
+        function handlePipelineResult(data) {
+            let speech = data.speech || '';
+            if (speech) addConversationLine('Jarvis', speech);
+            if (data.status === "success") {
+                addMovieCard(data.entry, data.poster);
+                document.getElementById('statusText').innerText = `Logged: ${data.entry.Title} ✓`;
+            } else if (data.status === "clarification") {
+                const choices = (data.candidates || []).map((candidate, index) =>
+                    `Option ${index + 1}: ${candidate.title} (${candidate.year || 'year unknown'})`
+                ).join(' | ');
+                const question = `${data.question} ${choices}`;
+                speech = question;
+                document.getElementById('statusText').innerText = question;
+                document.getElementById('liveTranscript').innerText = 'Record your answer, then click pause.';
+            } else {
+                document.getElementById('statusText').innerText = "Error: " + (data.message || "Unknown error");
+            }
+        }
+
+        function addConversationLine(speaker, text) {
+            const line = document.createElement('div');
+            line.className = speaker === 'Jarvis'
+                ? 'rounded-lg border border-orange-900/60 bg-orange-950/30 p-2 text-xs text-orange-100'
+                : 'rounded-lg border border-slate-800 bg-slate-950 p-2 text-xs text-slate-300';
+            const label = document.createElement('span');
+            label.className = 'font-semibold';
+            label.textContent = `${speaker}:`;
+            line.append(label, ` ${text}`);
+            const container = document.getElementById('conversationContainer');
+            container.appendChild(line);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addMovieCard(entry, posterUrl) {
+            const emptyState = document.getElementById('emptyState');
+            if (emptyState) emptyState.remove();
+
+            logCount++;
+            document.getElementById('logCount').innerText = `${logCount} entries`;
+
+            const card = document.createElement('div');
+            card.className = "movie-card";
+            card.style.setProperty('--tilt', `${(logCount % 3 - 1) * 1.2}deg`);
+            
+            const stars = '★'.repeat(Math.floor(entry.Rating)) + (entry.Rating % 1 !== 0 ? '½' : '');
+
+            const tape = document.createElement('div');
+            tape.className = 'tape';
+            const poster = document.createElement('img');
+            poster.src = posterUrl || 'https://via.placeholder.com/100x150?text=No+Poster';
+            poster.alt = `Poster for ${entry.Title}`;
+            const title = document.createElement('h3');
+            title.textContent = `${entry.Title} (${entry.Year})`;
+            const meta = document.createElement('div');
+            meta.className = 'movie-meta';
+            meta.textContent = entry.Rewatch ? `${stars} · rewatch` : `${stars} · ${entry.Rating}/5`;
+            const review = document.createElement('p');
+            review.className = 'movie-review';
+            review.textContent = entry.Review || 'No review text provided.';
+            card.append(tape, poster, title, meta, review);
+
+            document.getElementById('logContainer').prepend(card);
+        }
+
+        window.onload = initWebSocket;
+    </script>
+</body>
+</html>
